@@ -7,11 +7,11 @@ use core::ops::*;
 #[derive(Copy, Clone, Debug, Default)]
 pub struct DyadicFraction {
     num: i32,
-    power: u8,
+    power: i8,
 }
 
 impl DyadicFraction {
-    pub const fn new(num: i32, power: u8) -> Self {
+    pub const fn new(num: i32, power: i8) -> Self {
         Self { num, power }
     }
 
@@ -59,7 +59,7 @@ impl DyadicFraction {
 
     pub const fn canonical(&self) -> Self {
         let mut res = *self;
-        while (res.num & 1) == 0 && res.power > 0 {
+        while (res.num & 1) == 0 {
             res.power -= 1;
             res.num >>= 1;
         }
@@ -70,7 +70,7 @@ impl DyadicFraction {
         self.num
     }
 
-    pub fn power(&self) -> u8 {
+    pub fn power(&self) -> i8 {
         self.power
     }
 }
@@ -119,7 +119,11 @@ impl From<i8> for DyadicFraction {
 
 impl Into<i32> for DyadicFraction {
     fn into(self) -> i32 {
-        self.num.shr(self.power)
+        if self.power.is_negative() {
+            self.num.shl(self.power.abs())
+        } else {
+            self.num.shr(self.power)
+        }
     }
 }
 
@@ -199,7 +203,8 @@ impl Neg for DyadicFraction {
 
 impl PartialEq for DyadicFraction {
     fn eq(&self, other: &Self) -> bool {
-        self.num.shl(other.power) == other.num.shl(self.power)
+        let val: i32 = (*self).into();
+        val.eq(&(*other).into())
     }
 }
 
@@ -213,16 +218,28 @@ impl PartialOrd for DyadicFraction {
 
 impl Ord for DyadicFraction {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.num.shl(other.power).cmp(&other.num.shl(self.power))
+        let lhs = if other.power.is_negative() {
+            self.num.shr(other.power.abs())
+        } else {
+            self.num.shl(other.power)
+        };
+
+        let rhs = if self.power.is_negative() {
+            other.num.shr(self.power.abs())
+        } else {
+            other.num.shl(self.power)
+        };
+
+        lhs.cmp(&rhs)
     }
 }
 
 impl fmt::Display for DyadicFraction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.power == 0 {
-            write!(f, "{}", self.num)
-        } else {
+        if self.power > 0 {
             write!(f, "{}/{}", self.num, 1.shl(self.power))
+        } else {
+            write!(f, "{}", self.num.shl(self.power.abs()))
         }
     }
 }
@@ -254,8 +271,9 @@ fn test_mul() {
 
 #[test]
 fn test_canonical() {
-    let a = DyadicFraction::new(80, 3).canonical();
-    assert_eq!(10, a.into())
+    let a = DyadicFraction::new(80, 3);
+    assert_eq!(10, a.into());
+    assert_eq!(DyadicFraction::new(5, -1), a.canonical());
 }
 
 #[test]
