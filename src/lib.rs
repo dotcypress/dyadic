@@ -1,5 +1,6 @@
 #![no_std]
 
+use core::cmp::*;
 use core::fmt;
 use core::ops::*;
 
@@ -12,6 +13,26 @@ pub struct DyadicFraction {
 impl DyadicFraction {
     pub const fn new(num: i32, power: u8) -> Self {
         Self { num, power }
+    }
+
+    pub const fn zero() -> Self {
+        Self { num: 0, power: 0 }
+    }
+
+    pub fn max(lhs: Self, rhs: Self) -> Self {
+        if lhs > rhs {
+            lhs
+        } else {
+            rhs
+        }
+    }
+
+    pub fn min(lhs: Self, rhs: Self) -> Self {
+        if lhs < rhs {
+            lhs
+        } else {
+            rhs
+        }
     }
 
     pub const fn abs(self) -> Self {
@@ -36,8 +57,8 @@ impl DyadicFraction {
         self.num.is_negative()
     }
 
-    pub const fn normalize(self) -> Self {
-        let mut res = self;
+    pub const fn canonical(&self) -> Self {
+        let mut res = *self;
         while (res.num & 1) == 0 && res.power > 0 {
             res.power -= 1;
             res.num >>= 1;
@@ -102,37 +123,27 @@ impl Into<i32> for DyadicFraction {
     }
 }
 
-impl AddAssign for DyadicFraction {
-    fn add_assign(&mut self, rhs: Self) {
-        let (min_power, max_power) = if self.power > rhs.power {
-            (rhs.power, self.power)
-        } else {
-            (self.power, rhs.power)
-        };
-        self.num = self.num.shl(rhs.power - min_power) + rhs.num.shl(self.power - min_power);
-        self.power = max_power;
-    }
-}
-
 impl Add for DyadicFraction {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        let mut res = self;
-        res += other;
-        res
+        let (min_power, max_power) = if self.power > other.power {
+            (other.power, self.power)
+        } else {
+            (self.power, other.power)
+        };
+        let power = max_power;
+        let num = self
+            .num
+            .shl(other.power - min_power)
+            .saturating_add(other.num.shl(self.power - min_power));
+        Self::new(num, power).canonical()
     }
 }
 
-impl SubAssign for DyadicFraction {
-    fn sub_assign(&mut self, rhs: Self) {
-        let (min_power, max_power) = if self.power > rhs.power {
-            (rhs.power, self.power)
-        } else {
-            (self.power, rhs.power)
-        };
-        self.num = self.num.shl(rhs.power - min_power) - rhs.num.shl(self.power - min_power);
-        self.power = max_power;
+impl AddAssign for DyadicFraction {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
     }
 }
 
@@ -140,16 +151,23 @@ impl Sub for DyadicFraction {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
-        let mut res = self;
-        res -= other;
-        res
+        let (min_power, max_power) = if self.power > other.power {
+            (other.power, self.power)
+        } else {
+            (self.power, other.power)
+        };
+        let power = max_power;
+        let num = self
+            .num
+            .shl(other.power - min_power)
+            .saturating_sub(other.num.shl(self.power - min_power));
+        Self::new(num, power).canonical()
     }
 }
 
-impl MulAssign for DyadicFraction {
-    fn mul_assign(&mut self, rhs: Self) {
-        self.num *= rhs.num;
-        self.power += rhs.power;
+impl SubAssign for DyadicFraction {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
     }
 }
 
@@ -157,9 +175,17 @@ impl Mul for DyadicFraction {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self {
-        let mut res = self;
-        res *= other;
-        res
+        Self::new(
+            self.num.saturating_mul(other.num),
+            self.power.saturating_add(other.power),
+        )
+        .canonical()
+    }
+}
+
+impl MulAssign for DyadicFraction {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
     }
 }
 
@@ -173,13 +199,23 @@ impl Neg for DyadicFraction {
 
 impl PartialEq for DyadicFraction {
     fn eq(&self, other: &Self) -> bool {
-        let rhs = self.normalize();
-        let lhs = other.normalize();
-        rhs.power == lhs.power && rhs.num == lhs.num
+        self.num.shl(other.power) == other.num.shl(self.power)
     }
 }
 
 impl Eq for DyadicFraction {}
+
+impl PartialOrd for DyadicFraction {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for DyadicFraction {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.num.shl(other.power).cmp(&other.num.shl(self.power))
+    }
+}
 
 impl fmt::Display for DyadicFraction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -217,8 +253,8 @@ fn test_mul() {
 }
 
 #[test]
-fn test_normalize() {
-    let a = DyadicFraction::new(80, 3).normalize();
+fn test_canonical() {
+    let a = DyadicFraction::new(80, 3).canonical();
     assert_eq!(10, a.into())
 }
 
@@ -240,5 +276,22 @@ fn test_abs() {
 fn test_eq() {
     let a = DyadicFraction::new(4, 3);
     let b = DyadicFraction::new(8, 4);
-    assert!(a == b)
+    assert_eq!(a, b)
+}
+
+#[test]
+fn test_cmp() {
+    let a = DyadicFraction::new(4, 3);
+    let b = DyadicFraction::new(7, 4);
+    assert!(a > b)
+}
+
+#[test]
+fn test_max() {
+    let a = DyadicFraction::new(4, 3);
+    let b = DyadicFraction::new(7, 4);
+    let min = DyadicFraction::min(a, b);
+    let max = DyadicFraction::max(a, b);
+    assert_eq!(a, max);
+    assert_eq!(b, min);
 }
