@@ -4,8 +4,6 @@ use core::cmp::*;
 use core::fmt;
 use core::ops::*;
 
-pub mod pid;
-
 pub type DF = DyadicFraction;
 
 #[derive(Copy, Clone, Debug, Default)]
