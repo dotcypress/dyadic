@@ -4,6 +4,10 @@ use core::cmp::*;
 use core::fmt;
 use core::ops::*;
 
+pub mod pid;
+
+pub type DF = DyadicFraction;
+
 #[derive(Copy, Clone, Debug, Default)]
 pub struct DyadicFraction {
     num: i32,
@@ -59,7 +63,7 @@ impl DyadicFraction {
 
     pub const fn canonical(&self) -> Self {
         let mut res = *self;
-        while (res.num & 1) == 0 {
+        while res.num != 0 && (res.num & 1) == 0 {
             res.power -= 1;
             res.num >>= 1;
         }
@@ -119,10 +123,11 @@ impl From<i8> for DyadicFraction {
 
 impl Into<i32> for DyadicFraction {
     fn into(self) -> i32 {
+        let shift = i8::clamp(self.power.abs(), 0, 31);
         if self.power.is_negative() {
-            self.num.shl(self.power.abs())
+            self.num.shl(shift)
         } else {
-            self.num.shr(self.power)
+            self.num.shr(shift)
         }
     }
 }
@@ -139,8 +144,8 @@ impl Add for DyadicFraction {
         let power = max_power;
         let num = self
             .num
-            .shl(other.power - min_power)
-            .saturating_add(other.num.shl(self.power - min_power));
+            .shl(i8::clamp(other.power - min_power, 0, 31))
+            .saturating_add(other.num.shl(i8::clamp(self.power - min_power, 0, 31)));
         Self::new(num, power).canonical()
     }
 }
@@ -163,8 +168,8 @@ impl Sub for DyadicFraction {
         let power = max_power;
         let num = self
             .num
-            .shl(other.power - min_power)
-            .saturating_sub(other.num.shl(self.power - min_power));
+            .shl(i8::clamp(other.power - min_power, 0, 31))
+            .saturating_sub(other.num.shl(i8::clamp(self.power - min_power, 0, 31)));
         Self::new(num, power).canonical()
     }
 }
@@ -181,7 +186,7 @@ impl Mul for DyadicFraction {
     fn mul(self, other: Self) -> Self {
         Self::new(
             self.num.saturating_mul(other.num),
-            self.power.saturating_add(other.power),
+            i8::clamp(self.power.saturating_add(other.power), -31, 31),
         )
         .canonical()
     }
@@ -218,16 +223,18 @@ impl PartialOrd for DyadicFraction {
 
 impl Ord for DyadicFraction {
     fn cmp(&self, other: &Self) -> Ordering {
+        let other_shift = i8::clamp(other.power.abs(), 0, 31);
+        let self_shift = i8::clamp(self.power.abs(), 0, 31);
         let lhs = if other.power.is_negative() {
-            self.num.shr(other.power.abs())
+            self.num.shr(other_shift)
         } else {
-            self.num.shl(other.power)
+            self.num.shl(other_shift)
         };
 
         let rhs = if self.power.is_negative() {
-            other.num.shr(self.power.abs())
+            other.num.shr(self_shift)
         } else {
-            other.num.shl(self.power)
+            other.num.shl(self_shift)
         };
 
         lhs.cmp(&rhs)
@@ -236,10 +243,11 @@ impl Ord for DyadicFraction {
 
 impl fmt::Display for DyadicFraction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.power > 0 {
-            write!(f, "{}/{}", self.num, 1.shl(self.power))
+        let shift = i8::clamp(self.power.abs(), 0, 31);
+        if self.power.is_negative() {
+            write!(f, "{}", self.num.shl(shift))
         } else {
-            write!(f, "{}", self.num.shl(self.power.abs()))
+            write!(f, "{}/{}", self.num, 1.shl(shift))
         }
     }
 }
