@@ -13,8 +13,11 @@ pub struct DyadicFraction {
 }
 
 impl DyadicFraction {
-    pub const fn new(num: i32, power: i8) -> Self {
-        Self { num, power }
+    pub const fn new(num: i32, denom_power: i8) -> Self {
+        Self {
+            num,
+            power: denom_power,
+        }
     }
 
     pub const fn zero() -> Self {
@@ -38,17 +41,18 @@ impl DyadicFraction {
     }
 
     pub const fn abs(self) -> Self {
-        Self {
-            num: self.num.abs(),
-            power: self.power,
-        }
+        Self::new(self.num.abs(), self.power)
     }
 
     pub const fn signum(self) -> Self {
-        Self {
-            num: self.num.signum(),
-            power: 0,
+        Self::new(self.num.signum(), 0)
+    }
+
+    pub const fn copysign(self, sign: i32) -> Self {
+        if sign.signum() == self.num.signum() {
+            return self;
         }
+        Self::new(self.num * -1, self.power)
     }
 
     pub const fn is_positive(self) -> bool {
@@ -71,11 +75,26 @@ impl DyadicFraction {
         res
     }
 
+    pub fn mul_add(self, a: Self, b: Self) -> Self {
+        self * a + b
+    }
+
+    pub fn pow(self, n: u8) -> Self {
+        if n == 0 {
+            return self.signum();
+        }
+        let mut res = self;
+        for _ in 0..n - 1 {
+            res *= self;
+        }
+        res
+    }
+
     pub fn num(&self) -> i32 {
         self.num
     }
 
-    pub fn power(&self) -> i8 {
+    pub fn denom_power(&self) -> i8 {
         self.power
     }
 
@@ -100,67 +119,53 @@ impl DyadicFraction {
     }
 }
 
+impl Into<i32> for DyadicFraction {
+    fn into(self) -> i32 {
+        let val = self.canonical();
+        let shift = val.power.abs();
+        if shift > 32 {
+            if val.power.is_negative() {
+                val.num.signum() * i32::MAX
+            } else {
+                0
+            }
+        } else {
+            if val.power.is_negative() {
+                val.num.shl(shift)
+            } else {
+                val.num.shr(shift)
+            }
+        }
+    }
+}
+
 impl From<i32> for DyadicFraction {
     fn from(num: i32) -> Self {
-        Self { num, power: 0 }
+        Self::new(num, 0)
     }
 }
 
 impl From<i16> for DyadicFraction {
     fn from(num: i16) -> Self {
-        Self {
-            num: num as _,
-            power: 0,
-        }
+        Self::new(num as _, 0)
     }
 }
 
 impl From<u16> for DyadicFraction {
     fn from(num: u16) -> Self {
-        Self {
-            num: num as _,
-            power: 0,
-        }
+        Self::new(num as _, 0)
     }
 }
 
 impl From<u8> for DyadicFraction {
     fn from(num: u8) -> Self {
-        Self {
-            num: num as _,
-            power: 0,
-        }
+        Self::new(num as _, 0)
     }
 }
 
 impl From<i8> for DyadicFraction {
     fn from(num: i8) -> Self {
-        Self {
-            num: num as _,
-            power: 0,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct FractionConvertionError;
-
-impl Into<i32> for DyadicFraction {
-    fn into(self) -> i32 {
-        let shift = self.power.abs();
-        if self.power.is_negative() {
-            if shift < 32 {
-                self.num.shl(shift)
-            } else {
-                self.num.signum() * i32::MAX
-            }
-        } else {
-            if shift < 32 {
-                self.num.shr(shift)
-            } else {
-                0
-            }
-        }
+        Self::new(num as _, 0)
     }
 }
 
@@ -169,7 +174,7 @@ impl Add for DyadicFraction {
 
     fn add(self, other: Self) -> Self {
         let (fst, snd, power) = self.cross(other);
-        Self::new(fst.saturating_add(snd), power).canonical()
+        Self::new(fst.saturating_add(snd), power)
     }
 }
 
@@ -184,7 +189,7 @@ impl Sub for DyadicFraction {
 
     fn sub(self, other: Self) -> Self {
         let (fst, snd, power) = self.cross(other);
-        Self::new(fst.saturating_sub(snd), power).canonical()
+        Self::new(fst.saturating_sub(snd), power)
     }
 }
 
@@ -202,7 +207,6 @@ impl Mul for DyadicFraction {
             self.num.saturating_mul(other.num),
             self.power.saturating_add(other.power),
         )
-        .canonical()
     }
 }
 
@@ -216,7 +220,7 @@ impl Neg for DyadicFraction {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        self * Self::from(-1)
+        Self::new(-self.num, self.power)
     }
 }
 
@@ -274,80 +278,22 @@ impl Ord for DyadicFraction {
 
 impl fmt::Display for DyadicFraction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let shift = self.power.abs();
-        if self.power.is_negative() {
+        let val = self.canonical();
+        let shift = val.power.abs();
+        if val.power == 0 || val.power.is_negative() {
             let val = if (shift) < 32 {
-                self.num.shl(shift)
+                val.num.shl(shift)
             } else {
-                self.num.signum() * i32::MAX
+                val.num.signum() * i32::MAX
             };
             write!(f, "{}", val)
         } else {
-            let den = if (shift) < 32 { 1.shl(shift) } else { i32::MAX };
-            write!(f, "{}/{}", self.num, 1.shl(den))
+            let den = if (shift) < 32 {
+                1.shl(shift - 1)
+            } else {
+                i32::MAX
+            };
+            write!(f, "{}/{}", val.num, den)
         }
     }
-}
-
-#[test]
-fn test_add() {
-    let a = DyadicFraction::from(2);
-    let b = DyadicFraction::new(4, 3);
-    let c = a + b;
-    let d = c * 1000.into();
-    assert_eq!(2500, d.try_into().unwrap())
-}
-
-#[test]
-fn test_sub() {
-    let a = DyadicFraction::from(2);
-    let b = DyadicFraction::new(4, 3);
-    let c = a - b;
-    let d = c * 1000.into();
-    assert_eq!(1500, d.try_into().unwrap())
-}
-
-#[test]
-fn test_mul() {
-    let mut a = DyadicFraction::new(3, 2);
-    a *= 100.into();
-    assert_eq!(75, a.try_into().unwrap())
-}
-
-#[test]
-fn test_neg() {
-    let a = DyadicFraction::new(3, 2);
-    let b = DyadicFraction::new(-3, 2);
-    assert_eq!(a, -b)
-}
-
-#[test]
-fn test_abs() {
-    let a = DyadicFraction::new(3, 2);
-    let b = DyadicFraction::new(-3, 2);
-    assert_eq!(a, b.abs())
-}
-
-#[test]
-fn test_eq() {
-    let a = DyadicFraction::new(4, 3);
-    let b = DyadicFraction::new(8, 4);
-    assert_eq!(a, b)
-}
-
-#[test]
-fn test_cmp() {
-    let a = DyadicFraction::new(4, 3);
-    let b = DyadicFraction::new(7, 4);
-    assert!(a > b)
-}
-
-#[test]
-fn test_max() {
-    let a = DyadicFraction::new(4, 3);
-    let b = DyadicFraction::new(7, 4);
-    let min = DyadicFraction::min(a, b);
-    let max = DyadicFraction::max(a, b);
-    assert_eq!(a, max);
-    assert_eq!(b, min);
 }
