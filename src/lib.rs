@@ -285,14 +285,14 @@ impl fmt::Display for DyadicFraction {
         let val = self.canonical();
         let shift = val.power.abs();
         if val.power == 0 || val.power.is_negative() {
-            let val = if (shift) < 32 {
+            let val = if shift < 32 {
                 val.num.shl(shift)
             } else {
                 val.num.signum() * i32::MAX
             };
             write!(f, "{}", val)
         } else {
-            let den = if (shift) < 32 {
+            let den = if shift < 32 {
                 1.shl(shift - 1)
             } else {
                 i32::MAX
