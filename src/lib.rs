@@ -24,22 +24,6 @@ impl DyadicFraction {
         Self { num: 0, power: 0 }
     }
 
-    pub fn max(lhs: Self, rhs: Self) -> Self {
-        if lhs > rhs {
-            lhs
-        } else {
-            rhs
-        }
-    }
-
-    pub fn min(lhs: Self, rhs: Self) -> Self {
-        if lhs < rhs {
-            lhs
-        } else {
-            rhs
-        }
-    }
-
     pub const fn abs(self) -> Self {
         Self::new(self.num.abs(), self.power)
     }
@@ -52,7 +36,7 @@ impl DyadicFraction {
         if sign.signum() == self.num.signum() {
             return self;
         }
-        Self::new(self.num * -1, self.power)
+        Self::new(-self.num, self.power)
     }
 
     pub const fn is_positive(self) -> bool {
@@ -79,6 +63,10 @@ impl DyadicFraction {
         self * a + b
     }
 
+    pub fn scale<I: Into<Self>>(self, n: I) -> i32 {
+        self.mul(n.into()).into()
+    }
+
     pub fn pow(self, n: u8) -> Self {
         if n == 0 {
             return self.signum();
@@ -96,6 +84,22 @@ impl DyadicFraction {
 
     pub fn denom_power(&self) -> i8 {
         self.power
+    }
+
+    pub fn max(lhs: Self, rhs: Self) -> Self {
+        if lhs > rhs {
+            lhs
+        } else {
+            rhs
+        }
+    }
+
+    pub fn min(lhs: Self, rhs: Self) -> Self {
+        if lhs < rhs {
+            lhs
+        } else {
+            rhs
+        }
     }
 
     fn cross(self, other: Self) -> (i32, i32, i8) {
