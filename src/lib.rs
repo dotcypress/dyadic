@@ -13,10 +13,10 @@ pub struct DyadicFraction {
 }
 
 impl DyadicFraction {
-    pub const fn new(num: i32, denom_power: i8) -> Self {
+    pub const fn new(numerator: i32, denominator_power: i8) -> Self {
         Self {
-            num,
-            power: denom_power,
+            num: numerator,
+            power: denominator_power,
         }
     }
 
@@ -63,8 +63,8 @@ impl DyadicFraction {
         self * a + b
     }
 
-    pub fn scale<I: Into<Self>>(self, n: I) -> i32 {
-        self.mul(n.into()).into()
+    pub fn scale(self, a: impl Into<Self>) -> i32 {
+        self.mul(a.into()).into()
     }
 
     pub fn pow(self, n: u8) -> Self {
@@ -78,11 +78,11 @@ impl DyadicFraction {
         res
     }
 
-    pub fn num(&self) -> i32 {
+    pub fn numerator(&self) -> i32 {
         self.num
     }
 
-    pub fn denom_power(&self) -> i8 {
+    pub fn denominator_power(&self) -> i8 {
         self.power
     }
 

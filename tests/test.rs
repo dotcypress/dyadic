@@ -80,3 +80,10 @@ fn test_pow() {
     let b = a.pow(4);
     assert_eq!(b, DF::new(81, 12));
 }
+
+#[test]
+fn test_scale() {
+    let a = DF::new(3, 3);
+    assert_eq!(a.scale(1000), 375);
+    assert_eq!(a.scale(100), 37);
+}
