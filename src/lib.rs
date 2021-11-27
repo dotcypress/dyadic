@@ -293,7 +293,7 @@ impl fmt::Display for DyadicFraction {
             write!(f, "{}", val)
         } else {
             let den = if shift < 32 {
-                1.shl(shift - 1)
+                1.shl(shift)
             } else {
                 i32::MAX
             };
