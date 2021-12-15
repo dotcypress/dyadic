@@ -85,5 +85,22 @@ fn test_pow() {
 fn test_scale() {
     let a = DF::new(3, 3);
     assert_eq!(a.scale(1000), 375);
+    assert_eq!(a.scale(-1000), -375);
     assert_eq!(a.scale(100), 37);
+    assert_eq!(a.scale(-100), -38);
+}
+
+#[test]
+fn test_div_by_two() {
+    let a = DF::new(3, 3);
+    assert_eq!(a.scale(100), 37);
+    assert_eq!(a.div_by_two().scale(100), 18);
+}
+
+#[test]
+fn test_round() {
+    assert_eq!(DF::new(141, 5).round(4), DF::new(35, 3));
+    assert_eq!(DF::new(142, 5).round(4), DF::new(71, 4));
+    assert_eq!(DF::new(143, 5).round(4), DF::new(71, 4));
+    assert_eq!(DF::new(145, 5).round(3), DF::new(9, 1));
 }
