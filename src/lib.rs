@@ -79,6 +79,16 @@ impl DyadicFraction {
         res
     }
 
+    pub fn floor(&self) -> i32 {
+        let val = self.canonical();
+        let shift = val.power.abs();
+        if val.power <= 0 {
+            saturating_shl(val.num, shift)
+        } else {
+            saturating_shr(val.num, shift)
+        }
+    }
+
     pub fn div_by_two(&self) -> Self {
         let mut res = *self;
         res.power = res.power.saturating_add(1);
@@ -90,7 +100,7 @@ impl DyadicFraction {
     }
 
     pub fn scale(self, a: impl Into<Self>) -> i32 {
-        self.canonical().mul(a.into()).into()
+        self.canonical().mul(a.into()).floor()
     }
 
     pub fn pow(self, n: u8) -> Self {
@@ -134,47 +144,29 @@ impl DyadicFraction {
         } else {
             (self.power, other.power)
         };
-        let power = max_power;
-        let shift = other.power - min_power;
-        let fst = if shift < 32 {
-            self.num.shl(shift)
-        } else if self.num.is_positive() {
-            i32::MAX
-        } else {
-            i32::MIN
-        };
-
-        let shift = self.power - min_power;
-        let snd = if shift < 32 {
-            other.num.shl(shift)
-        } else if other.is_positive() {
-            i32::MAX
-        } else {
-            i32::MIN
-        };
-        (fst, snd, power)
+        (
+            saturating_shl(self.num, other.power - min_power),
+            saturating_shl(other.num, self.power - min_power),
+            max_power,
+        )
     }
 }
 
-impl From<DyadicFraction> for i32 {
-    fn from(val: DyadicFraction) -> Self {
-        let val = val.canonical();
-        let shift = val.power.abs();
-        if shift > 32 {
-            if val.power.is_negative() {
-                if val.is_positive() {
-                    i32::MAX
-                } else {
-                    i32::MIN
-                }
-            } else {
-                0
-            }
-        } else if val.power.is_negative() {
-            val.num.shl(shift)
-        } else {
-            val.num.shr(shift)
-        }
+fn saturating_shl(num: i32, rhs: i8) -> i32 {
+    if rhs < 32 {
+        num.shl(rhs)
+    } else if num.is_positive() {
+        i32::MAX
+    } else {
+        i32::MIN
+    }
+}
+
+fn saturating_shr(num: i32, rhs: i8) -> i32 {
+    if rhs < 32 {
+        num.shr(rhs)
+    } else {
+        0
     }
 }
 
@@ -302,18 +294,10 @@ impl fmt::Display for DyadicFraction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val = self.canonical();
         let shift = val.power.abs();
-        if val.power == 0 || val.power.is_negative() {
-            let val = if shift < 32 {
-                val.num.shl(shift)
-            } else if val.is_positive() {
-                i32::MAX
-            } else {
-                i32::MIN
-            };
-            write!(f, "{}", val)
+        if val.power <= 0 {
+            write!(f, "{}", saturating_shl(val.num, shift))
         } else {
-            let den = if shift < 32 { 1.shl(shift) } else { i32::MAX };
-            write!(f, "{}/{}", val.num, den)
+            write!(f, "{}/{}", val.num, saturating_shl(1, shift))
         }
     }
 }

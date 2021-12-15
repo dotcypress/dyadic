@@ -6,7 +6,7 @@ fn test_add() {
     let b = DF::new(4, 3);
     let c = a + b;
     let d = c * 1000.into();
-    assert_eq!(2500, d.try_into().unwrap())
+    assert_eq!(2500, d.floor())
 }
 
 #[test]
@@ -15,14 +15,14 @@ fn test_sub() {
     let b = DF::new(4, 3);
     let c = a - b;
     let d = c * 1000.into();
-    assert_eq!(1500, d.try_into().unwrap())
+    assert_eq!(1500, d.floor())
 }
 
 #[test]
 fn test_mul() {
     let mut a = DF::new(3, 2);
     a *= 100.into();
-    assert_eq!(75, a.try_into().unwrap())
+    assert_eq!(75, a.floor())
 }
 
 #[test]
