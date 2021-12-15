@@ -53,7 +53,7 @@ impl DyadicFraction {
         if res.num == 0 {
             res.power = 0;
         }
-        while res.num != 0 && (res.num & 1) == 0 {
+        while res.power > 0 && (res.num & 1) == 0 {
             res.power -= 1;
             res.num >>= 1;
         }
@@ -61,20 +61,27 @@ impl DyadicFraction {
     }
 
     pub const fn round(&self, denominator_power: i8) -> Self {
-        let mut res = self.canonical();
-        if denominator_power >= res.power {
-            return res;
+        let mut res = *self;
+        if res.num == 0 {
+            res.power = 0;
         }
-        while res.power > denominator_power {
-            res.num &= !1;
-            res = res.canonical();
+        loop {
+            while res.power > 0 && (res.num & 1) == 0 {
+                res.power -= 1;
+                res.num >>= 1;
+            }
+            if res.power > denominator_power {
+                res.num &= !1;
+            } else {
+                break;
+            }
         }
         res
     }
 
     pub fn div_by_two(&self) -> Self {
         let mut res = *self;
-        res.power += 1;
+        res.power = res.power.saturating_add(1);
         res
     }
 
@@ -155,7 +162,11 @@ impl From<DyadicFraction> for i32 {
         let shift = val.power.abs();
         if shift > 32 {
             if val.power.is_negative() {
-                val.num.signum() * i32::MAX
+                if val.is_positive() {
+                    i32::MAX
+                } else {
+                    i32::MIN
+                }
             } else {
                 0
             }
