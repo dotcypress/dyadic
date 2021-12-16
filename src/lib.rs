@@ -14,11 +14,11 @@ pub struct DyadicFraction {
 
 impl DyadicFraction {
     pub const fn new(numerator: i32, denominator_power: i8) -> Self {
-        let df = Self {
+        Self {
             num: numerator,
             power: denominator_power,
-        };
-        df.canonical()
+        }
+        .canonical()
     }
 
     pub const fn zero() -> Self {
@@ -244,6 +244,7 @@ impl Mul for DyadicFraction {
             self.num.saturating_mul(other.num),
             self.power.saturating_add(other.power),
         )
+        .canonical()
     }
 }
 
