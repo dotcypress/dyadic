@@ -358,4 +358,10 @@ pub mod consts {
 
     /// ln(10)
     pub const LN_10: DyadicFraction = DyadicFraction::new(75451, 15);
+
+    /// Golden ratio
+    pub const PHI: DyadicFraction = DyadicFraction::new(13255, 13);
+
+    /// Supergolden ratio
+    pub const PSI: DyadicFraction = DyadicFraction::new(6003, 12);
 }
