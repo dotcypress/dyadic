@@ -95,8 +95,8 @@ impl DyadicFraction {
         res
     }
 
-    pub fn mul_add(self, a: Self, b: Self) -> Self {
-        self * a + b
+    pub fn mul_add(self, a: impl Into<Self>, b: impl Into<Self>) -> Self {
+        self * a.into() + b.into()
     }
 
     pub fn scale(self, a: impl Into<Self>) -> i32 {

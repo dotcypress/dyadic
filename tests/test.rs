@@ -91,6 +91,12 @@ fn test_scale() {
 }
 
 #[test]
+fn test_mul_add() {
+    let a = DF::new(3, 3);
+    assert_eq!(a.mul_add(1000, 5), DF::from(380));
+}
+
+#[test]
 fn test_div_by_two() {
     let a = DF::new(3, 3);
     assert_eq!(a.scale(100), 37);

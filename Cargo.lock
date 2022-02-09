@@ -4,4 +4,4 @@ version = 3
 
 [[package]]
 name = "dyadic"
-version = "0.0.7"
+version = "0.0.8"
